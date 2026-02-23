@@ -1,4 +1,4 @@
-# X Digest
+# Grok X Checker
 
 Grok API の `x_search` 機能を使って、指定した X（Twitter）アカウントの昨日の投稿をまとめてレポート生成するWebツール。
 
