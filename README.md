@@ -22,8 +22,10 @@ Grok API の `x_search` 機能を使って、指定した X（Twitter）アカ�
 
 1. 以下の2ファイルをダウンロード
   - `index.html`
-  - `check.txt`
-2. `check.txt`を編集
+  - `check.sample.txt`
+2. `check.sample.txt`を編集
+  - 真ん中の「.sample」を削除し`check.txt`にリネームする
+  - 下記の説明のように、Grok APIキーとチェックするXのアカウントを記載
 3. `index.html`をブラウザで開く
 4. check.txt をドラッグ＆ドロップ → 「レポートを生成」
 
