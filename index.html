@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>X Digest — Daily X Report Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base: #0a0a0f;
+      --bg-card: #12121a;
+      --bg-input: #0e0e16;
+      --border: #1e1e2e;
+      --border-focus: #3b82f6;
+      --text-primary: #e4e4ef;
+      --text-secondary: #8888a0;
+      --text-muted: #55556a;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.15);
+      --accent-soft: rgba(59, 130, 246, 0.08);
+      --success: #22c55e;
+      --error: #ef4444;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --font-sans: 'Noto Sans JP', 'Space Grotesk', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(59, 130, 246, 0.04) 0%, transparent 60%),
+        radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.02) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    .header { text-align: center; margin-bottom: 48px; }
+
+    .header__logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Grotesk', var(--font-sans);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .header__logo-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: var(--accent);
+      border-radius: 10px;
+      font-size: 20px;
+    }
+
+    .header__sub {
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 300;
+      letter-spacing: 0.5px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 20px;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover { border-color: #2a2a3e; }
+
+    .card__title {
+      font-family: 'Space Grotesk', var(--font-sans);
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card__title-icon { font-size: 16px; }
+
+    .textarea {
+      width: 100%;
+      min-height: 160px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.7;
+      padding: 16px;
+      resize: vertical;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+
+    .textarea:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .textarea::placeholder { color: var(--text-muted); }
+
+    .dropzone {
+      position: relative;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s;
+      background: var(--bg-input);
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .dropzone__icon { font-size: 32px; margin-bottom: 12px; opacity: 0.6; }
+    .dropzone__text { color: var(--text-secondary); font-size: 14px; margin-bottom: 4px; }
+    .dropzone__hint { color: var(--text-muted); font-size: 12px; font-family: var(--font-mono); }
+
+    .dropzone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .parsed-info {
+      margin-top: 16px;
+      padding: 16px;
+      background: rgba(34, 197, 94, 0.06);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: var(--radius-sm);
+      display: none;
+    }
+
+    .parsed-info.visible { display: block; }
+
+    .parsed-info__title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--success);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .parsed-info__key {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .parsed-info__accounts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+    .account-tag {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--accent);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .date-row { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+    .date-row label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+
+    .date-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      padding: 8px 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .date-input:focus { border-color: var(--border-focus); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 14px 24px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: 'Space Grotesk', var(--font-sans);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn--primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn--primary:hover:not(:disabled) {
+      background: #2563eb;
+      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn--primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .loading-spinner {
+      display: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    .loading-spinner.visible { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      margin-top: 16px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 13px;
+      display: none;
+    }
+
+    .loading-text.visible { display: block; }
+
+    .error-box {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      border-radius: var(--radius-sm);
+      color: var(--error);
+      font-size: 13px;
+      display: none;
+      line-height: 1.6;
+    }
+
+    .error-box.visible { display: block; }
+
+    .result-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .result-card.visible { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      padding: 20px 28px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .result-header__title {
+      font-family: 'Space Grotesk', var(--font-sans);
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--success);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .result-header__date {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .result-body { padding: 28px; }
+
+    .result-body__content {
+      font-size: 14px;
+      line-height: 1.9;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .result-footer {
+      padding: 16px 28px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .result-footer__link {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent);
+      text-decoration: none;
+      padding: 4px 10px;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 20px;
+      transition: all 0.15s;
+    }
+
+    .result-footer__link:hover {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: var(--accent);
+    }
+
+    .footer {
+      margin-top: 48px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    .footer a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-bottom: 1px solid var(--border);
+      transition: color 0.15s;
+    }
+
+    .footer a:hover { color: var(--accent); }
+
+    .notice {
+      display: flex;
+      gap: 10px;
+      padding: 14px 18px;
+      background: rgba(34, 197, 94, 0.05);
+      border: 1px solid rgba(34, 197, 94, 0.15);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-top: 16px;
+    }
+
+    .notice__icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    @media (max-width: 600px) {
+      .container { padding: 32px 16px 64px; }
+      .card { padding: 20px; }
+      .result-body { padding: 20px; }
+      .header__logo { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="header__logo">
+        <span class="header__logo-icon">𝕏</span>
+        X Digest
+      </div>
+      <p class="header__sub">Grok API で X の投稿をまとめてレポート生成</p>
+    </header>
+
+    <!-- System Prompt -->
+    <div class="card">
+      <div class="card__title">
+        <span class="card__title-icon">📝</span>
+        System Prompt
+      </div>
+      <textarea id="systemPrompt" class="textarea" spellcheck="false">あなたはXアカウントの投稿を分析するアシスタントです。
+以下のルールに従ってレポートを作成してください：
+
+1. まず「全体概要」を提示
+   - 対象アカウント全体で共通する話題やトレンド
+   - 特に注目すべき動きがあれば強調
+
+2. 次に「各アカウントの投稿数と内容まとめ」を記載
+   - アカウント名
+   - 投稿数（概算でOK）
+   - 内容の要約（箇条書きではなく文章で）
+
+3. 出力は日本語
+
+4. 投稿がなかったアカウントは「投稿なし」と記載</textarea>
+    </div>
+
+    <!-- File Upload -->
+    <div class="card">
+      <div class="card__title">
+        <span class="card__title-icon">📁</span>
+        check.txt
+      </div>
+
+      <div class="dropzone" id="dropzone">
+        <div class="dropzone__icon">📄</div>
+        <div class="dropzone__text">ファイルをドロップ、またはクリックして選択</div>
+        <div class="dropzone__hint">1行目: APIキー / 2行目以降: @アカウント名</div>
+        <input type="file" id="fileInput" accept=".txt,.text">
+      </div>
+
+      <div class="parsed-info" id="parsedInfo">
+        <div class="parsed-info__title">✓ 読み込み完了</div>
+        <div class="parsed-info__key" id="parsedKey"></div>
+        <div class="parsed-info__accounts" id="parsedAccounts"></div>
+      </div>
+
+      <div class="date-row">
+        <label for="targetDate">対象日:</label>
+        <input type="date" id="targetDate" class="date-input">
+        <span style="font-size: 12px; color: var(--text-muted);">空欄 = 昨日</span>
+      </div>
+
+      <div class="notice">
+        <span class="notice__icon">🔒</span>
+        <span>
+          すべての処理はこのブラウザ内で完結します。<br>
+          APIキーは外部サーバーに送信・保存されることはありません（Grok API への直接通信のみ）。
+        </span>
+      </div>
+    </div>
+
+    <!-- Generate -->
+    <div class="card" style="text-align: center;">
+      <button id="generateBtn" class="btn btn--primary" disabled>
+        <span class="loading-spinner" id="spinner"></span>
+        <span id="btnText">🔍 レポートを生成</span>
+      </button>
+      <div class="loading-text" id="loadingText">
+        Grok が X を検索中です。30秒〜1分ほどかかります...
+      </div>
+      <div class="error-box" id="errorBox"></div>
+    </div>
+
+    <!-- Result -->
+    <div class="result-card" id="resultCard">
+      <div class="result-header">
+        <div class="result-header__title"><span>✅</span> レポート</div>
+        <div class="result-header__date" id="resultDate"></div>
+      </div>
+      <div class="result-body">
+        <div class="result-body__content" id="resultContent"></div>
+      </div>
+      <div class="result-footer" id="resultLinks"></div>
+    </div>
+
+    <div class="footer">
+      X Digest — Powered by <a href="https://docs.x.ai/" target="_blank">Grok API</a> x_search<br>
+      APIキーの取得は <a href="https://console.x.ai/" target="_blank">xAI Console</a> から
+    </div>
+  </div>
+
+  <script>
+    const GROK_API_URL = 'https://api.x.ai/v1/responses';
+    const GROK_MODEL = 'grok-4-1-fast';
+
+    let parsedApiKey = '';
+    let parsedAccounts = [];
+
+    const $ = (id) => document.getElementById(id);
+    const dropzone       = $('dropzone');
+    const fileInput      = $('fileInput');
+    const parsedInfo     = $('parsedInfo');
+    const parsedKeyEl    = $('parsedKey');
+    const parsedAccountsEl = $('parsedAccounts');
+    const generateBtn    = $('generateBtn');
+    const spinner        = $('spinner');
+    const btnText        = $('btnText');
+    const loadingText    = $('loadingText');
+    const errorBox       = $('errorBox');
+    const resultCard     = $('resultCard');
+    const resultDate     = $('resultDate');
+    const resultContent  = $('resultContent');
+    const resultLinks    = $('resultLinks');
+    const targetDateInput = $('targetDate');
+    const systemPromptEl = $('systemPrompt');
+
+    // --- File handling ---
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files[0]) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => parseCheckFile(e.target.result);
+      reader.readAsText(file);
+    }
+
+    function parseCheckFile(text) {
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+
+      if (lines.length < 2) {
+        showError('ファイルには最低2行必要です（1行目: APIキー、2行目以降: アカウント名）');
+        return;
+      }
+
+      const apiKey = lines[0];
+      if (!apiKey.startsWith('xai-')) {
+        showError('1行目のAPIキーが不正です。"xai-" で始まるキーを記載してください。');
+        return;
+      }
+
+      const accounts = lines.slice(1).map(l => l.replace(/^@/, ''));
+      if (accounts.length === 0) { showError('アカウント名が見つかりません。'); return; }
+      if (accounts.length > 20) { showError('アカウント数は最大20個までです。'); return; }
+
+      parsedApiKey = apiKey;
+      parsedAccounts = accounts;
+
+      parsedKeyEl.textContent = `API Key: ${apiKey.slice(0, 6)}••••••••${apiKey.slice(-4)}`;
+      parsedAccountsEl.innerHTML = accounts.map(a =>
+        `<span class="account-tag">@${a}</span>`
+      ).join('');
+
+      parsedInfo.classList.add('visible');
+      generateBtn.disabled = false;
+      hideError();
+    }
+
+    // --- Date helpers ---
+    function getDateRange(targetDate) {
+      const JST_OFFSET = 9 * 60 * 60 * 1000;
+      const now = new Date(Date.now() + JST_OFFSET);
+      let target;
+      if (targetDate) {
+        target = new Date(targetDate + 'T00:00:00Z');
+      } else {
+        target = new Date(now);
+        target.setUTCDate(target.getUTCDate() - 1);
+      }
+      const nextDay = new Date(target);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      const fmt = (d) => d.toISOString().split('T')[0];
+      return { fromDate: fmt(target), toDate: fmt(nextDay), displayDate: fmt(target) };
+    }
+
+    // --- Generate ---
+    generateBtn.addEventListener('click', async () => {
+      if (!parsedApiKey || !parsedAccounts.length) return;
+
+      setLoading(true);
+      hideError();
+      resultCard.classList.remove('visible');
+
+      try {
+        const dateRange = getDateRange(targetDateInput.value || null);
+        const accountList = parsedAccounts.map(a => `@${a}`).join('\n- ');
+
+        const res = await fetch(GROK_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${parsedApiKey}`,
+          },
+          body: JSON.stringify({
+            model: GROK_MODEL,
+            instructions: systemPromptEl.value,
+            input: [{
+              role: 'user',
+              content: `以下のXアカウントについて、${dateRange.displayDate} の投稿をチェックし、レポートを作成してください：\n- ${accountList}`
+            }],
+            tools: [{
+              type: 'x_search',
+              allowed_x_handles: parsedAccounts,
+              from_date: dateRange.fromDate,
+              to_date: dateRange.toDate,
+            }],
+          }),
+        });
+
+        if (!res.ok) {
+          if (res.status === 401) throw new Error('APIキーが無効または期限切れです。xAI Console で確認してください。');
+          if (res.status === 429) throw new Error('レート制限に達しました。しばらく待ってからお試しください。');
+          const errorText = await res.text();
+          throw new Error(`Grok API エラー (${res.status}): ${errorText}`);
+        }
+
+        const data = await res.json();
+        if (data.error) throw new Error(`Grok API: ${data.error.message}`);
+
+        const msg = data.output?.find(o => o.type === 'message');
+        const txt = msg?.content?.find(c => c.type === 'output_text');
+        if (!txt?.text) throw new Error('Grok API からレポートが返されませんでした。');
+
+        showResult({ report: txt.text, dateRange, accounts: parsedAccounts });
+      } catch (err) {
+        showError(err.message || String(err));
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    // --- UI helpers ---
+    function setLoading(on) {
+      generateBtn.disabled = on;
+      spinner.classList.toggle('visible', on);
+      loadingText.classList.toggle('visible', on);
+      btnText.textContent = on ? '生成中...' : '🔍 レポートを生成';
+    }
+
+    function showError(msg) {
+      errorBox.textContent = msg;
+      errorBox.classList.add('visible');
+    }
+
+    function hideError() {
+      errorBox.classList.remove('visible');
+    }
+
+    function showResult(data) {
+      resultDate.textContent = data.dateRange.displayDate;
+      resultContent.textContent = data.report;
+
+      resultLinks.innerHTML = data.accounts.map(acc => {
+        const q = encodeURIComponent(`from:${acc} since:${data.dateRange.fromDate} until:${data.dateRange.toDate}`);
+        return `<a class="result-footer__link" href="https://x.com/search?q=${q}" target="_blank" rel="noopener">@${acc}</a>`;
+      }).join('');
+
+      resultCard.classList.add('visible');
+      resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  </script>
+</body>
+</html>
